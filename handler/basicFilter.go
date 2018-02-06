@@ -5,7 +5,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
-	"fmt"
+	"keepassapi/helper"
 	"keepassapi/model"
 	"math"
 	"net/http"
@@ -44,9 +44,12 @@ func (self SimpleFilter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err.WriteIn(w)
 		return
 	}
-	rawPassword := string(rawPasswordByte)
-	fmt.Println(rawPassword)
-	r.Header.Set(DECRYPT_PASSWORD_HEADER_KEY, string(rawPassword))
+	password := string(rawPasswordByte)
+	unlockError := helper.SharedKeepassHelper().TryUnlock(password)
+	if unlockError != nil {
+		unlockError.WriteIn(w)
+		return
+	}
 	self.handler(w, r)
 }
 

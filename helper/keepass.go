@@ -21,7 +21,7 @@ type KeepassHelper struct {
 
 var instance = &KeepassHelper{"", gokeepasslib.NewDatabase()}
 
-func Shared() *KeepassHelper {
+func SharedKeepassHelper() *KeepassHelper {
 	return instance
 }
 func (self *KeepassHelper) TryUnlock(key string) *model.GeneralError {
