@@ -8,7 +8,8 @@ import (
 	"github.com/tobischo/gokeepasslib"
 )
 
-const keepassdbpath = "/Users/zwb/Documents/keepass.kdbx"
+var Keepassdbpath = ""
+
 const (
 	KEEPASS_ERROR_FILE_OPEN_FAIL = 1000 + iota
 	KEEPASS_ERROR_WRONG_PASSWORD
@@ -31,7 +32,7 @@ func SharedKeepassHelper() *KeepassHelper {
 }
 func (self *KeepassHelper) TryUnlock(key string) *model.GeneralError {
 	if len(self.key) == 0 {
-		file, err := os.Open(keepassdbpath)
+		file, err := os.Open(Keepassdbpath)
 		if err != nil {
 			return model.NewGeneralError(KEEPASS_ERROR_FILE_OPEN_FAIL, "读取文件错误")
 		}
