@@ -11,8 +11,8 @@ import (
 )
 
 func main() {
-	port := os.Args[1]
-	helper.Keepassdbpath = os.Args[2]
+	port := os.Getenv("PORT")
+	helper.Keepassdbpath = os.Getenv("PATH")
 	r := mux.NewRouter()
 	r.Handle("/{path:.*}", handler.NewSimpleFilter(handler.Get)).Methods("GET")
 	fmt.Println("running at port:", port)
