@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"keepassapi/helper"
 	"keepassapi/model"
 	"net/http"
@@ -24,19 +23,19 @@ func Get(w http.ResponseWriter, r *http.Request) {
 	}
 	result := map[string]interface{}{}
 	if group != nil {
+		result["item"] = model.NewGroupInfo(group.Name)
 		subGroups := make([]model.GroupInfo, len(group.Groups))
 		for i, subGroup := range group.Groups {
 			subGroups[i] = model.NewGroupInfo(subGroup.Name)
 		}
-		subEntries := make([]model.EntryInfo, len(group.Entries))
+		subEntries := make([]model.EntryBasicInfo, len(group.Entries))
 		for i, subEntry := range group.Entries {
-			fmt.Println(subEntry)
-			subEntries[i] = model.NewEntryInfo(subEntry.GetTitle(), subEntry.GetContent("UserName"), subEntry.GetPassword(), subEntry.GetContent("Notes"))
+			subEntries[i] = model.NewEntryBasicInfo(subEntry.GetTitle())
 		}
-		result["groups"] = subGroups
-		result["entries"] = subEntries
+		result["subGroups"] = subGroups
+		result["subEntries"] = subEntries
 	} else {
-		result["entries"] = []model.EntryInfo{model.NewEntryInfo(entry.GetTitle(), entry.GetContent("UserName"), entry.GetPassword(), entry.GetContent("Notes"))}
+		result["item"] = []model.EntryInfo{model.NewEntryInfo(entry.GetTitle(), entry.GetContent("UserName"), entry.GetPassword(), entry.GetContent("Notes"))}
 	}
 	successResult := model.NewSuccessResult(result)
 	json.NewEncoder(w).Encode(successResult)
