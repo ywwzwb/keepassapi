@@ -11,7 +11,6 @@ import (
 
 func Get(w http.ResponseWriter, r *http.Request) {
 	path := "/" + mux.Vars(r)["path"]
-	// 先尝试列举
 	group, entry, err := helper.SharedKeepassHelper().GetGroupOrEntryAtPath(path)
 	if group == nil && entry == nil {
 		if err != nil {
@@ -39,15 +38,4 @@ func Get(w http.ResponseWriter, r *http.Request) {
 	}
 	successResult := model.NewSuccessResult(result)
 	json.NewEncoder(w).Encode(successResult)
-	// groupResult, err := helper.SharedKeepassHelper().List(path)
-	// if err == nil {
-	// 	json.NewEncoder(w).Encode(groupResult)
-	// 	return
-	// }
-	// if err.Code != helper.KEEPASS_ERROR_PATH_UNREACHABLE {
-	// 	err.WriteIn(w)
-	// 	return
-	// }
-	// // 再尝试获取指定对象
-
 }

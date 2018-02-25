@@ -7,6 +7,6 @@ RUN  ls -al && go build
 
 FROM alpine:latest
 COPY --from=0 /go/src/keepassapi/keepassapi /bin/keepassapi
-ENV   PORT=8000 PATH="/keepass/keepass.kdbx"
-EXPOSE $PORT
+ENV   KEEPASS_PORT=8000 KEEPASS_DBPATH="/keepass/keepass.kdbx"
+EXPOSE $KEEPASS_PORT
 CMD ["/bin/keepassapi"]
