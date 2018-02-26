@@ -34,7 +34,7 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		result["subGroups"] = subGroups
 		result["subEntries"] = subEntries
 	} else {
-		result["item"] = []model.EntryInfo{model.NewEntryInfo(entry.GetTitle(), entry.GetContent("UserName"), entry.GetPassword(), entry.GetContent("Notes"))}
+		result["item"] = model.NewEntryInfo(entry.GetTitle(), entry.GetContent("UserName"), entry.GetPassword(), entry.GetContent("Notes"))
 	}
 	successResult := model.NewSuccessResult(result)
 	json.NewEncoder(w).Encode(successResult)
