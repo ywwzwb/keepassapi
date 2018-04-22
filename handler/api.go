@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"keepassapi/helper"
 	"keepassapi/model"
 	"net/http"
@@ -11,6 +12,15 @@ import (
 
 func Get(w http.ResponseWriter, r *http.Request) {
 	path := "/" + mux.Vars(r)["path"]
+	forceVal := r.URL.Query()["force"]
+	force := false
+	if len(forceVal) > 0 && forceVal[0] == "true" {
+		force = true
+	}
+	if force {
+		fmt.Println("reunlock1")
+		helper.SharedKeepassHelper().ReUnlock()
+	}
 	group, entry, err := helper.SharedKeepassHelper().GetGroupOrEntryAtPath(path)
 	if group == nil && entry == nil {
 		if err != nil {

@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"fmt"
 	"keepassapi/model"
 	"os"
 	"strings"
@@ -32,6 +33,7 @@ func SharedKeepassHelper() *KeepassHelper {
 }
 func (self *KeepassHelper) TryUnlock(key string) *model.GeneralError {
 	if len(self.key) == 0 {
+		fmt.Println("reunloc3")
 		file, err := os.Open(Keepassdbpath)
 		if err != nil {
 			return model.NewGeneralError(KEEPASS_ERROR_FILE_OPEN_FAIL, "读取文件错误")
@@ -52,6 +54,12 @@ func (self *KeepassHelper) TryUnlock(key string) *model.GeneralError {
 		return nil
 	}
 	return model.NewGeneralError(KEEPASS_ERROR_WRONG_PASSWORD, "密码错误")
+}
+func (self *KeepassHelper) ReUnlock() *model.GeneralError {
+	fmt.Println("reunlock2", self.key)
+	key := self.key
+	self.key = ""
+	return self.TryUnlock(key)
 }
 func (self *KeepassHelper) GetGroupOrEntryAtPath(path string) (*gokeepasslib.Group, *gokeepasslib.Entry, *model.GeneralError) {
 	if self.db == nil || self.unlocked == false {
