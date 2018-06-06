@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 	r := mux.NewRouter()
-	r.Handle("/{path:.*}", handler.NewSimpleFilter(handler.Get)).Methods("GET")
+	r.Handle("/{path:.*}", handler.NewSimpleFilter(handler.Read)).Methods("GET", "POST")
 	fmt.Println("running at port:", port)
 	fmt.Println("keepass db path:", helper.Keepassdbpath)
 	http.ListenAndServe("0.0.0.0:"+port, r)

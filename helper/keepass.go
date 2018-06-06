@@ -31,31 +31,33 @@ func SharedKeepassHelper() *KeepassHelper {
 	return instance
 }
 func (self *KeepassHelper) TryUnlock(key string) *model.GeneralError {
-	if len(self.key) == 0 {
+	if len(self.key) == 0 || !self.unlocked {
+		// 还没有保存密码, 或者还未解锁, 需要解锁
 		file, err := os.Open(Keepassdbpath)
 		if err != nil {
-			return model.NewGeneralError(KEEPASS_ERROR_FILE_OPEN_FAIL, "读取文件错误")
+			return model.NewGeneralError(KEEPASS_ERROR_FILE_OPEN_FAIL, "读取文件错误:"+err.Error())
 		}
 		self.db.Credentials = gokeepasslib.NewPasswordCredentials(key)
 		err = gokeepasslib.NewDecoder(file).Decode(self.db)
 		if err != nil {
-			return model.NewGeneralError(KEEPASS_ERROR_WRONG_PASSWORD, "密码错误")
+			return model.NewGeneralError(KEEPASS_ERROR_WRONG_PASSWORD, "密码错误:"+err.Error())
 		}
 		err = self.db.UnlockProtectedEntries()
 		if err != nil {
-			return model.NewGeneralError(KEEPASS_ERROR_UNLOCK_ERROR, "解锁错误")
+			return model.NewGeneralError(KEEPASS_ERROR_UNLOCK_ERROR, "解锁错误:"+err.Error())
 		}
 		self.unlocked = true
 		self.key = key
 		return nil
 	} else if self.key == key {
+		// 如果解锁的密码和之前开锁的密码一致, 就不必重复解锁
 		return nil
 	}
 	return model.NewGeneralError(KEEPASS_ERROR_WRONG_PASSWORD, "密码错误")
 }
 func (self *KeepassHelper) ReUnlock() *model.GeneralError {
 	key := self.key
-	self.key = ""
+	self.unlocked = false
 	return self.TryUnlock(key)
 }
 func (self *KeepassHelper) GetGroupOrEntryAtPath(path string) (*gokeepasslib.Group, *gokeepasslib.Entry, *model.GeneralError) {

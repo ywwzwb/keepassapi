@@ -14,11 +14,11 @@ type GeneralError struct {
 func NewGeneralError(code int, message string) *GeneralError {
 	return &GeneralError{Code: code, Message: message}
 }
-func (self *GeneralError) error() string {
-	return fmt.Sprintf("code: %d, msg:%s", self.Code, self.Message)
+func (err *GeneralError) Error() string {
+	return fmt.Sprintf("code: %d, msg:%s", err.Code, err.Message)
 }
 
-func (self *GeneralError) WriteIn(w io.Writer) {
+func (err *GeneralError) WriteIn(w io.Writer) {
 	encoder := json.NewEncoder(w)
-	encoder.Encode(self)
+	encoder.Encode(err)
 }
