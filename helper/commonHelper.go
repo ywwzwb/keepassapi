@@ -2,8 +2,6 @@ package helper
 
 import (
 	"net/http"
-
-	"github.com/tobischo/gokeepasslib"
 )
 
 // IsReqeustBodyEmpty could indicate that the request with or without request body
@@ -13,8 +11,4 @@ func IsReqeustBodyEmpty(r *http.Request) bool {
 		return true
 	}
 	return false
-}
-
-func IsBase64UUIDEqualToKeepassUUID(base64UUID string, keepassUUID gokeepasslib.UUID) bool {
-	return true
 }

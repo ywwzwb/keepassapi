@@ -1,5 +1,13 @@
 package model
 
+const (
+	FIELD_TITLE    = "title"
+	FIELD_USERNAME = "username"
+	FIELD_PASSWORD = "password"
+	FIELD_URL      = "url"
+	FIELD_NOTES    = "notes"
+)
+
 type Request struct {
 	Path    []string          `json:"path"`
 	Field   map[string]string `json:"field, omitempty"`
