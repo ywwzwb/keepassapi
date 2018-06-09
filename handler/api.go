@@ -83,11 +83,6 @@ func AddRecord(w http.ResponseWriter, r *http.Request) {
 		model.NewGeneralError(http.StatusBadRequest, "Field 参数为空").WriteIn(w)
 		return
 	}
-	if title, ok := requestInfo.Field[model.FIELD_TITLE]; !ok || len(title) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		model.NewGeneralError(http.StatusBadRequest, "Field 参数中标题为空").WriteIn(w)
-		return
-	}
 	var uuid *string
 	var err *model.GeneralError
 	if requestInfo.IsGroup {
@@ -101,6 +96,37 @@ func AddRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	successResult := model.NewSuccessResult(map[string]string{"uuid": *uuid})
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(successResult)
+	return
+}
+
+// UpdateRecord will update group or entry
+func UpdateRecord(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var requestInfo model.Request
+	if err := json.NewDecoder(r.Body).Decode(&requestInfo); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		model.NewGeneralError(http.StatusBadRequest, "json decode error: "+err.Error()).WriteIn(w)
+		return
+	}
+	if len(requestInfo.Field) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	// var uuid *string
+	// var err *model.GeneralError
+	// if requestInfo.IsGroup {
+	// 	uuid, err = helper.SharedKeepassHelper().CreateGroupInPath(requestInfo.Path, requestInfo.Field)
+	// } else {
+	// 	uuid, err = helper.SharedKeepassHelper().CreateEntryInPath(requestInfo.Path, requestInfo.Field)
+	// }
+	// if err != nil {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	err.WriteIn(w)
+	// 	return
+	// }
+	// successResult := model.NewSuccessResult(map[string]string{"uuid": *uuid})
+	// json.NewEncoder(w).Encode(successResult)
 	return
 }

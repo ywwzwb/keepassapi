@@ -180,6 +180,59 @@ func (keepass *KeepassHelper) CreateEntryInPath(path []string, fields map[string
 	}
 	return &uuid, nil
 }
+
+// UpdateGroupInPath will update a group in specific path
+func (keepass *KeepassHelper) UpdateGroupInPath(path []string, fields map[string]string) *model.GeneralError {
+	group, err := keepass.GetGroupOfPath(path)
+	if err != nil {
+		return err
+	}
+	if title, ok := fields[model.FIELD_TITLE]; ok {
+		group.Name = title
+	}
+	return keepass.saveDB()
+}
+
+// UpdateEntryInPath will update an entry in specific path
+func (keepass *KeepassHelper) UpdateEntryInPath(path []string, fields map[string]string) *model.GeneralError {
+	entry, err := keepass.GetEntryFromPath(path)
+	if err != nil {
+		return err
+	}
+	if title, ok := fields[model.FIELD_TITLE]; ok {
+		value := entry.Get("Title")
+		*value = mkValue("Title", title)
+	}
+	if username, ok := fields[model.FIELD_USERNAME]; ok {
+		if value := entry.Get("UserName"); value != nil {
+			*value = mkValue("UserName", username)
+		} else {
+			entry.Values = append(entry.Values, mkValue("UserName", username))
+		}
+	}
+	if password, ok := fields[model.FIELD_PASSWORD]; ok {
+		if value := entry.Get("Password"); value != nil {
+			*value = mkProtectedValue("Password", password)
+		} else {
+			entry.Values = append(entry.Values, mkProtectedValue("Password", password))
+		}
+	}
+	if url, ok := fields[model.FIELD_URL]; ok {
+		if value := entry.Get("URL"); value != nil {
+			*value = mkValue("URL", url)
+		} else {
+			entry.Values = append(entry.Values, mkValue("URL", url))
+		}
+	}
+	if notes, ok := fields[model.FIELD_NOTES]; ok {
+		if value := entry.Get("URL"); value != nil {
+			*value = mkValue("Notes", notes)
+		} else {
+			entry.Values = append(entry.Values, mkValue("Notes", notes))
+		}
+	}
+	return keepass.saveDB()
+}
 func (keepass *KeepassHelper) saveDB() *model.GeneralError {
 	// lock db
 	keepass.db.LockProtectedEntries()
