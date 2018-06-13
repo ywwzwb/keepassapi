@@ -26,6 +26,7 @@ func NewSimpleFilter(f func(http.ResponseWriter, *http.Request)) SimpleFilter {
 	return SimpleFilter{f}
 }
 func (self SimpleFilter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	rawPasswordArr, ok := r.Header[PASSWORD_HEADER_KEY]
 	if !ok {
 		err := model.NewGeneralError(http.StatusBadRequest, "缺少password 字段")
