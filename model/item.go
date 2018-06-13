@@ -3,7 +3,7 @@ package model
 import (
 	"encoding/base64"
 
-	"github.com/ywwzwb/gokeepasslib"
+	"github.com/tobischo/gokeepasslib"
 )
 
 const (

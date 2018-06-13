@@ -3,10 +3,11 @@ package helper
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"keepassapi/model"
 	"os"
 
-	"github.com/ywwzwb/gokeepasslib"
+	"github.com/tobischo/gokeepasslib"
 )
 
 var Keepassdbpath = ""
@@ -80,8 +81,10 @@ func (keepass *KeepassHelper) GetGroupOfPath(path []string) (*gokeepasslib.Group
 	if len(root.Groups) == 0 {
 		return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNREACHABLE, "空数据库")
 	}
-	_ = root
 	currentGroup := &root.Groups[0]
+	if len(path) == 0 {
+		return currentGroup, nil
+	}
 	for _, pathUUID := range path[1:] {
 		uuid := make([]byte, 100)
 		if length, err := base64.StdEncoding.Decode(uuid, []byte(pathUUID)); err != nil || length != KEEPASS_UUID_LEN {
@@ -89,9 +92,11 @@ func (keepass *KeepassHelper) GetGroupOfPath(path []string) (*gokeepasslib.Group
 		}
 		uuid = uuid[:KEEPASS_UUID_LEN]
 		var subGroup *gokeepasslib.Group
-		for _, _subGroup := range currentGroup.Groups {
+		// cg:= *currentGroup
+		for i, _subGroup := range currentGroup.Groups {
+			// fmt.Printf("group[%d]=%p, entry=[%p]\n", i, &, &subGroup)
 			if bytes.Equal(uuid, _subGroup.UUID[:]) {
-				subGroup = &_subGroup
+				subGroup = &currentGroup.Groups[i]
 				break
 			}
 		}
@@ -122,9 +127,9 @@ func (keepass *KeepassHelper) GetEntryFromPath(path []string) (*gokeepasslib.Ent
 		return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNSUPPORT, "路径"+enrtyUUID+"不正确")
 	}
 	uuid = uuid[:KEEPASS_UUID_LEN]
-	for _, entry := range group.Entries {
+	for i, entry := range group.Entries {
 		if bytes.Equal(uuid, entry.UUID[:]) {
-			return &entry, nil
+			return &group.Entries[i], nil
 		}
 	}
 	return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNREACHABLE, "找不到对象")
@@ -184,6 +189,9 @@ func (keepass *KeepassHelper) CreateEntryInPath(path []string, fields map[string
 // UpdateGroupInPath will update a group in specific path
 func (keepass *KeepassHelper) UpdateGroupInPath(path []string, fields map[string]string) *model.GeneralError {
 	group, err := keepass.GetGroupOfPath(path)
+	g := &keepass.db.Content.Root.Groups[0].Groups[0]
+	fmt.Printf("1--%p\n", group)
+	fmt.Printf("2--%p\n", g)
 	if err != nil {
 		return err
 	}
@@ -225,7 +233,7 @@ func (keepass *KeepassHelper) UpdateEntryInPath(path []string, fields map[string
 		}
 	}
 	if notes, ok := fields[model.FIELD_NOTES]; ok {
-		if value := entry.Get("URL"); value != nil {
+		if value := entry.Get("Notes"); value != nil {
 			*value = mkValue("Notes", notes)
 		} else {
 			entry.Values = append(entry.Values, mkValue("Notes", notes))

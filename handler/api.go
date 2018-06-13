@@ -114,19 +114,16 @@ func UpdateRecord(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	// var uuid *string
-	// var err *model.GeneralError
-	// if requestInfo.IsGroup {
-	// 	uuid, err = helper.SharedKeepassHelper().CreateGroupInPath(requestInfo.Path, requestInfo.Field)
-	// } else {
-	// 	uuid, err = helper.SharedKeepassHelper().CreateEntryInPath(requestInfo.Path, requestInfo.Field)
-	// }
-	// if err != nil {
-	// 	w.WriteHeader(http.StatusBadRequest)
-	// 	err.WriteIn(w)
-	// 	return
-	// }
-	// successResult := model.NewSuccessResult(map[string]string{"uuid": *uuid})
-	// json.NewEncoder(w).Encode(successResult)
-	return
+	var err *model.GeneralError
+	if requestInfo.IsGroup {
+		err = helper.SharedKeepassHelper().UpdateGroupInPath(requestInfo.Path, requestInfo.Field)
+	} else {
+		err = helper.SharedKeepassHelper().UpdateEntryInPath(requestInfo.Path, requestInfo.Field)
+	}
+	if err != nil {
+		w.WriteHeader(http.StatusNoContent)
+		err.WriteIn(w)
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
