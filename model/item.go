@@ -21,20 +21,24 @@ func NewGroupInfo(uuid, title string) GroupInfo {
 	return GroupInfo{uuid, title, ItemTypeGroup}
 }
 func NewGroupFromKeepassGroup(group gokeepasslib.Group) GroupInfo {
-	return NewGroupInfo(base64.StdEncoding.EncodeToString(group.UUID[:]), group.Name)
+	return NewGroupInfo(itemTypeStrFromType(ItemTypeGroup)+base64.StdEncoding.EncodeToString(group.UUID[:]), group.Name)
 }
 
+// EntryBasicInfo basic entry info
 type EntryBasicInfo struct {
 	UUID  string `json:"uuid"`
 	Title string `json:"title"`
 	Type  int    `json:"type"`
 }
 
+// NewEntryBasicInfo create item
 func NewEntryBasicInfo(UDID string, title string) EntryBasicInfo {
 	return EntryBasicInfo{UDID, title, ItemTypeEntry}
 }
+
+// NewEntryBasicFromKeepassEntry create item from gokeepass.entry
 func NewEntryBasicFromKeepassEntry(entry gokeepasslib.Entry) EntryBasicInfo {
-	return NewEntryBasicInfo(base64.StdEncoding.EncodeToString(entry.UUID[:]), entry.GetTitle())
+	return NewEntryBasicInfo(itemTypeStrFromType(ItemTypeEntry)+base64.StdEncoding.EncodeToString(entry.UUID[:]), entry.GetTitle())
 }
 
 type EntryDetailInfo struct {
@@ -53,4 +57,15 @@ func NewEntryDetailInfo(UDID string, title string, username string, password str
 func NewEntryDetailFromKeepassEntry(entry gokeepasslib.Entry) EntryDetailInfo {
 
 	return NewEntryDetailInfo(base64.StdEncoding.EncodeToString(entry.UUID[:]), entry.GetTitle(), entry.GetContent("UserName"), entry.GetPassword(), entry.GetContent("Notes"), entry.GetContent("URL"))
+}
+
+func itemTypeStrFromType(t int) string {
+	switch t {
+	case ItemTypeEntry:
+		return string(RequestItemTypeEntry)
+	case ItemTypeGroup:
+		return string(RequestItemTypeGroup)
+	default:
+		return ""
+	}
 }

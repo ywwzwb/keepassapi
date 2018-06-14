@@ -24,7 +24,8 @@ func main() {
 		os.Exit(1)
 	}
 	r := mux.NewRouter()
-	r.Handle("/", handler.NewSimpleFilter(handler.ReadDB)).Methods("GET")
+	// r.Handle("/", handler.NewSimpleFilter(handler.ReadDB)).Methods("GET")
+	r.Handle("/{UUID:[A-Za-z0-9+=/]*}", handler.NewSimpleFilter(handler.ReadDB)).Methods("GET")
 	r.Handle("/", handler.NewSimpleFilter(handler.AddRecord)).Methods("POST")
 	r.Handle("/", handler.NewSimpleFilter(handler.UpdateRecord)).Methods("PUT")
 	fmt.Println("running at port:", port)
