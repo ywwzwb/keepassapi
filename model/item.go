@@ -56,7 +56,7 @@ func NewEntryDetailInfo(UDID string, title string, username string, password str
 }
 func NewEntryDetailFromKeepassEntry(entry gokeepasslib.Entry) EntryDetailInfo {
 
-	return NewEntryDetailInfo(base64.StdEncoding.EncodeToString(entry.UUID[:]), entry.GetTitle(), entry.GetContent("UserName"), entry.GetPassword(), entry.GetContent("Notes"), entry.GetContent("URL"))
+	return NewEntryDetailInfo(itemTypeStrFromType(ItemTypeEntry)+base64.StdEncoding.EncodeToString(entry.UUID[:]), entry.GetTitle(), entry.GetContent("UserName"), entry.GetPassword(), entry.GetContent("Notes"), entry.GetContent("URL"))
 }
 
 func itemTypeStrFromType(t int) string {
