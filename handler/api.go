@@ -102,7 +102,7 @@ func AddRecord(w http.ResponseWriter, r *http.Request) {
 	if requestInfo.IsGroup {
 		uuid, err = helper.SharedKeepassHelper().CreateGroupInParentGroup(uuidbase64str, requestInfo.Field)
 	} else {
-
+		uuid, err = helper.SharedKeepassHelper().CreateEntryInParentGroup(uuidbase64str, requestInfo.Field)
 	}
 	if err != nil {
 		if err.Code == helper.KEEPASS_ERROR_UUID_NOT_FOUND {

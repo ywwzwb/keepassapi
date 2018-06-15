@@ -151,6 +151,39 @@ func (keepass *KeepassHelper) CreateGroupInParentGroup(parentUUIDBase64Str strin
 	return &uuid, nil
 }
 
+// CreateEntryInParentGroup will create entry in parentGroup
+func (keepass *KeepassHelper) CreateEntryInParentGroup(parentUUIDBase64Str string, fields map[string]string) (*string, *model.GeneralError) {
+	// 修改之前, 重新加载数据库, 保证数据一致
+	parentGroup, err := keepass.GetGroupOfUUID(parentUUIDBase64Str, true)
+	if err != nil {
+		return nil, err
+	}
+	entry := gokeepasslib.NewEntry()
+	if title, ok := fields[model.FIELD_TITLE]; ok && len(title) > 0 {
+		entry.Values = append(entry.Values, mkValue("Title", title))
+	} else {
+		return nil, model.NewGeneralError(KEEPASS_ERROR_NO_TITLE, "未设置标题")
+	}
+
+	if username, ok := fields[model.FIELD_USERNAME]; ok {
+		entry.Values = append(entry.Values, mkValue("UserName", username))
+	}
+	if password, ok := fields[model.FIELD_PASSWORD]; ok {
+		entry.Values = append(entry.Values, mkProtectedValue("Password", password))
+	}
+	if url, ok := fields[model.FIELD_URL]; ok {
+		entry.Values = append(entry.Values, mkValue("URL", url))
+	}
+	if notes, ok := fields[model.FIELD_NOTES]; ok {
+		entry.Values = append(entry.Values, mkValue("Notes", notes))
+	}
+	parentGroup.Entries = append(parentGroup.Entries, entry)
+	uuid := string(model.RequestItemTypeEntry) + base64.StdEncoding.EncodeToString(entry.UUID[:])
+	if err := keepass.saveDB(); err != nil {
+		return nil, err
+	}
+	return &uuid, nil
+}
 func (keepass *KeepassHelper) findGroupInParentGroup(parentGroup *gokeepasslib.Group, uuid gokeepasslib.UUID) *gokeepasslib.Group {
 	if parentGroup == nil {
 		return nil
@@ -257,24 +290,6 @@ func (keepass *KeepassHelper) GetEntryFromPath(path []string) (*gokeepasslib.Ent
 		}
 	}
 	return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNREACHABLE, "找不到对象")
-}
-
-// CreateGroupInPath will create a group in specific path, should return new group id
-func (keepass *KeepassHelper) CreateGroupInPath(path []string, fields map[string]string) (*string, *model.GeneralError) {
-	parentGroup, err := keepass.GetGroupOfPath(path)
-	if err != nil {
-		return nil, err
-	}
-	group := gokeepasslib.NewGroup()
-	if title, ok := fields[model.FIELD_TITLE]; ok && len(title) > 0 {
-		group.Name = title
-	} else {
-		return nil, model.NewGeneralError(KEEPASS_ERROR_NO_TITLE, "未设置标题")
-	}
-	parentGroup.Groups = append(parentGroup.Groups, group)
-	uuid := base64.StdEncoding.EncodeToString(group.UUID[:])
-	keepass.saveDB()
-	return &uuid, nil
 }
 
 // CreateEntryInPath will create an entry in specific path, should return new entry id
