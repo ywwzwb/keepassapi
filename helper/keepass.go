@@ -1,9 +1,7 @@
 package helper
 
 import (
-	"bytes"
 	"encoding/base64"
-	"fmt"
 	"keepassapi/model"
 	"os"
 
@@ -184,6 +182,61 @@ func (keepass *KeepassHelper) CreateEntryInParentGroup(parentUUIDBase64Str strin
 	}
 	return &uuid, nil
 }
+
+// UpdateGroupOfUUID will update the specific group
+func (keepass *KeepassHelper) UpdateGroupOfUUID(UUIDBase64Str string, fields map[string]string) *model.GeneralError {
+	// 修改之前, 重新加载数据库, 保证数据一致
+	group, err := keepass.GetGroupOfUUID(UUIDBase64Str, true)
+	if err != nil {
+		return err
+	}
+	if title, ok := fields[model.FIELD_TITLE]; ok {
+		group.Name = title
+	}
+	return keepass.saveDB()
+}
+
+// UpdateEntryInPath will update an entry in specific path
+func (keepass *KeepassHelper) UpdateEntryOfUUID(UUIDBase64Str string, fields map[string]string) *model.GeneralError {
+	// 修改之前, 重新加载数据库, 保证数据一致
+	entry, err := keepass.GetEntryOfUUID(UUIDBase64Str, true)
+	if err != nil {
+		return err
+	}
+	if title, ok := fields[model.FIELD_TITLE]; ok {
+		value := entry.Get("Title")
+		*value = mkValue("Title", title)
+	}
+	if username, ok := fields[model.FIELD_USERNAME]; ok {
+		if value := entry.Get("UserName"); value != nil {
+			*value = mkValue("UserName", username)
+		} else {
+			entry.Values = append(entry.Values, mkValue("UserName", username))
+		}
+	}
+	if password, ok := fields[model.FIELD_PASSWORD]; ok {
+		if value := entry.Get("Password"); value != nil {
+			*value = mkProtectedValue("Password", password)
+		} else {
+			entry.Values = append(entry.Values, mkProtectedValue("Password", password))
+		}
+	}
+	if url, ok := fields[model.FIELD_URL]; ok {
+		if value := entry.Get("URL"); value != nil {
+			*value = mkValue("URL", url)
+		} else {
+			entry.Values = append(entry.Values, mkValue("URL", url))
+		}
+	}
+	if notes, ok := fields[model.FIELD_NOTES]; ok {
+		if value := entry.Get("Notes"); value != nil {
+			*value = mkValue("Notes", notes)
+		} else {
+			entry.Values = append(entry.Values, mkValue("Notes", notes))
+		}
+	}
+	return keepass.saveDB()
+}
 func (keepass *KeepassHelper) findGroupInParentGroup(parentGroup *gokeepasslib.Group, uuid gokeepasslib.UUID) *gokeepasslib.Group {
 	if parentGroup == nil {
 		return nil
@@ -229,157 +282,6 @@ func (keepass *KeepassHelper) findEntryInParentGroup(parentGroup *gokeepasslib.G
 	return nil
 }
 
-// GetGroupOfPath will get the keepass group from specific path
-func (keepass *KeepassHelper) GetGroupOfPath(path []string) (*gokeepasslib.Group, *model.GeneralError) {
-	if keepass.db == nil || keepass.unlocked == false {
-		return nil, model.NewGeneralError(KEEPASS_ERROR_DB_LOCKED, "数据库未解锁")
-	}
-	root := keepass.db.Content.Root
-	if len(root.Groups) == 0 {
-		return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNREACHABLE, "空数据库")
-	}
-	currentGroup := &root.Groups[0]
-	if len(path) == 0 {
-		return currentGroup, nil
-	}
-	for _, pathUUID := range path[1:] {
-		uuid := make([]byte, 100)
-		if length, err := base64.StdEncoding.Decode(uuid, []byte(pathUUID)); err != nil || length != KEEPASS_UUID_LEN {
-			return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNSUPPORT, "路径"+pathUUID+"不正确")
-		}
-		uuid = uuid[:KEEPASS_UUID_LEN]
-		var subGroup *gokeepasslib.Group
-		// cg:= *currentGroup
-		for i, _subGroup := range currentGroup.Groups {
-			// fmt.Printf("group[%d]=%p, entry=[%p]\n", i, &, &subGroup)
-			if bytes.Equal(uuid, _subGroup.UUID[:]) {
-				subGroup = &currentGroup.Groups[i]
-				break
-			}
-		}
-		if subGroup == nil {
-			return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNREACHABLE, "找不到对象")
-		}
-		currentGroup = subGroup
-	}
-	return currentGroup, nil
-}
-
-// GetEntryFromPath will return the entry from specific path
-func (keepass *KeepassHelper) GetEntryFromPath(path []string) (*gokeepasslib.Entry, *model.GeneralError) {
-	if len(path) < 2 {
-		// 至少层级为2, 第一层为根节点, 第二层为entry 节点
-		return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNREACHABLE, "路径错误, 路径长度必须大于2")
-	}
-	group, err := keepass.GetGroupOfPath(path[:len(path)-1])
-	if err != nil {
-		return nil, err
-	}
-	if group == nil {
-		return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNREACHABLE, "查找组失败")
-	}
-	uuid := make([]byte, 100)
-	enrtyUUID := path[len(path)-1]
-	if length, err := base64.StdEncoding.Decode(uuid, []byte(enrtyUUID)); err != nil || length != KEEPASS_UUID_LEN {
-		return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNSUPPORT, "路径"+enrtyUUID+"不正确")
-	}
-	uuid = uuid[:KEEPASS_UUID_LEN]
-	for i, entry := range group.Entries {
-		if bytes.Equal(uuid, entry.UUID[:]) {
-			return &group.Entries[i], nil
-		}
-	}
-	return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNREACHABLE, "找不到对象")
-}
-
-// CreateEntryInPath will create an entry in specific path, should return new entry id
-func (keepass *KeepassHelper) CreateEntryInPath(path []string, fields map[string]string) (*string, *model.GeneralError) {
-	parentGroup, err := keepass.GetGroupOfPath(path)
-	if err != nil {
-		return nil, err
-	}
-	entry := gokeepasslib.NewEntry()
-	if title, ok := fields[model.FIELD_TITLE]; ok && len(title) > 0 {
-		entry.Values = append(entry.Values, mkValue("Title", title))
-	} else {
-		return nil, model.NewGeneralError(KEEPASS_ERROR_NO_TITLE, "未设置标题")
-	}
-
-	if username, ok := fields[model.FIELD_USERNAME]; ok {
-		entry.Values = append(entry.Values, mkValue("UserName", username))
-	}
-	if password, ok := fields[model.FIELD_PASSWORD]; ok {
-		entry.Values = append(entry.Values, mkProtectedValue("Password", password))
-	}
-	if url, ok := fields[model.FIELD_URL]; ok {
-		entry.Values = append(entry.Values, mkValue("URL", url))
-	}
-	if notes, ok := fields[model.FIELD_NOTES]; ok {
-		entry.Values = append(entry.Values, mkValue("Notes", notes))
-	}
-	parentGroup.Entries = append(parentGroup.Entries, entry)
-	uuid := base64.StdEncoding.EncodeToString(entry.UUID[:])
-	if err := keepass.saveDB(); err != nil {
-		return nil, err
-	}
-	return &uuid, nil
-}
-
-// UpdateGroupInPath will update a group in specific path
-func (keepass *KeepassHelper) UpdateGroupInPath(path []string, fields map[string]string) *model.GeneralError {
-	group, err := keepass.GetGroupOfPath(path)
-	g := &keepass.db.Content.Root.Groups[0].Groups[0]
-	fmt.Printf("1--%p\n", group)
-	fmt.Printf("2--%p\n", g)
-	if err != nil {
-		return err
-	}
-	if title, ok := fields[model.FIELD_TITLE]; ok {
-		group.Name = title
-	}
-	return keepass.saveDB()
-}
-
-// UpdateEntryInPath will update an entry in specific path
-func (keepass *KeepassHelper) UpdateEntryInPath(path []string, fields map[string]string) *model.GeneralError {
-	entry, err := keepass.GetEntryFromPath(path)
-	if err != nil {
-		return err
-	}
-	if title, ok := fields[model.FIELD_TITLE]; ok {
-		value := entry.Get("Title")
-		*value = mkValue("Title", title)
-	}
-	if username, ok := fields[model.FIELD_USERNAME]; ok {
-		if value := entry.Get("UserName"); value != nil {
-			*value = mkValue("UserName", username)
-		} else {
-			entry.Values = append(entry.Values, mkValue("UserName", username))
-		}
-	}
-	if password, ok := fields[model.FIELD_PASSWORD]; ok {
-		if value := entry.Get("Password"); value != nil {
-			*value = mkProtectedValue("Password", password)
-		} else {
-			entry.Values = append(entry.Values, mkProtectedValue("Password", password))
-		}
-	}
-	if url, ok := fields[model.FIELD_URL]; ok {
-		if value := entry.Get("URL"); value != nil {
-			*value = mkValue("URL", url)
-		} else {
-			entry.Values = append(entry.Values, mkValue("URL", url))
-		}
-	}
-	if notes, ok := fields[model.FIELD_NOTES]; ok {
-		if value := entry.Get("Notes"); value != nil {
-			*value = mkValue("Notes", notes)
-		} else {
-			entry.Values = append(entry.Values, mkValue("Notes", notes))
-		}
-	}
-	return keepass.saveDB()
-}
 func (keepass *KeepassHelper) saveDB() *model.GeneralError {
 	// lock db
 	keepass.db.LockProtectedEntries()

@@ -85,18 +85,20 @@ func AddRecord(w http.ResponseWriter, r *http.Request) {
 		model.NewGeneralError(http.StatusBadRequest, "Field 参数为空").WriteIn(w)
 		return
 	}
-	if len(requestInfo.UUID) <= 1 {
+	parentUUID, ok := mux.Vars(r)[model.RequestParamUUID]
+	if !ok || len(parentUUID) <= 1 {
 		// 创建对象时, uuid 必须不为空
 		w.WriteHeader(http.StatusBadRequest)
 		model.NewGeneralError(http.StatusBadRequest, "UUID 参数为空").WriteIn(w)
+		return
 	}
-	if requestInfo.UUID[0] != model.RequestItemTypeGroup {
+	if parentUUID[0] != model.RequestItemTypeGroup {
 		w.WriteHeader(http.StatusBadRequest)
 		model.NewGeneralError(http.StatusBadRequest, "只能在组内创建对象").WriteIn(w)
 		return
 	}
 
-	uuidbase64str := requestInfo.UUID[1:]
+	uuidbase64str := parentUUID[1:]
 	var uuid *string
 	var err *model.GeneralError
 	if requestInfo.IsGroup {
@@ -117,22 +119,6 @@ func AddRecord(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(successResult)
 	return
-	// var uuid *string
-	// var err *model.GeneralError
-	// if requestInfo.IsGroup {
-	// 	uuid, err = helper.SharedKeepassHelper().CreateGroupInPath(requestInfo.Path, requestInfo.Field)
-	// } else {
-	// 	uuid, err = helper.SharedKeepassHelper().CreateEntryInPath(requestInfo.Path, requestInfo.Field)
-	// }
-	// if err != nil {
-	// 	w.WriteHeader(http.StatusBadRequest)
-	// 	err.WriteIn(w)
-	// 	return
-	// }
-	// successResult := model.NewSuccessResult(map[string]string{"uuid": *uuid})
-	// w.WriteHeader(http.StatusCreated)
-	// json.NewEncoder(w).Encode(successResult)
-	// return
 }
 
 // UpdateRecord will update group or entry
@@ -148,16 +134,44 @@ func UpdateRecord(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+	uuid, ok := mux.Vars(r)[model.RequestParamUUID]
+	if !ok || len(uuid) <= 1 {
+		// 修改对象时, uuid 必须不为空
+		w.WriteHeader(http.StatusBadRequest)
+		model.NewGeneralError(http.StatusBadRequest, "UUID 参数为空").WriteIn(w)
+		return
+	}
+	uuidtype := uuid[0]
+	uuidbase64str := uuid[1:]
+	_ = uuidbase64str
 	var err *model.GeneralError
-	if requestInfo.IsGroup {
-		err = helper.SharedKeepassHelper().UpdateGroupInPath(requestInfo.Path, requestInfo.Field)
-	} else {
-		err = helper.SharedKeepassHelper().UpdateEntryInPath(requestInfo.Path, requestInfo.Field)
+	switch uuidtype {
+	case model.RequestItemTypeGroup:
+		err = helper.SharedKeepassHelper().UpdateGroupOfUUID(uuidbase64str, requestInfo.Field)
+	case model.RequestItemTypeEntry:
+		err = helper.SharedKeepassHelper().UpdateEntryOfUUID(uuidbase64str, requestInfo.Field)
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		model.NewGeneralError(http.StatusBadRequest, "uuid 不正确")
+		return
 	}
 	if err != nil {
-		w.WriteHeader(http.StatusNoContent)
+		if err.Code == helper.KEEPASS_ERROR_UUID_NOT_FOUND {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
 		err.WriteIn(w)
+		return
 	} else {
 		w.WriteHeader(http.StatusNoContent)
+		return
 	}
+	// var err *model.GeneralError
+	// if requestInfo.IsGroup {
+	// 	err = helper.SharedKeepassHelper().UpdateGroupInPath(requestInfo.Path, requestInfo.Field)
+	// } else {
+	// 	err = helper.SharedKeepassHelper().UpdateEntryInPath(requestInfo.Path, requestInfo.Field)
+	// }
+
 }
