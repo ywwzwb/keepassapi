@@ -20,7 +20,9 @@ const (
 	KEEPASS_ERROR_ENCODE_ERROR
 	KEEPASS_ERROR_NO_TITLE
 	KEEPASS_ERROR_WRONG_UUID
+	KEEPASS_ERROR_TRY_DELETE_ROOT_GROUP
 	KEEPASS_ERROR_UUID_NOT_FOUND
+	KEEPASS_ERROR_UNKNOWN
 )
 const KEEPASS_UUID_LEN = 16
 
@@ -95,7 +97,7 @@ func (keepass *KeepassHelper) GetGroupOfUUID(UUIDBase64Str string, force bool) (
 	if err := uuid.UnmarshalText([]byte(UUIDBase64Str)); err != nil {
 		return nil, model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "UUID 异常:"+err.Error())
 	}
-	if group := keepass.findGroupInParentGroup(rootGroup, uuid); group != nil {
+	if _, group := keepass.findGroupInParentGroup(rootGroup, uuid); group != nil {
 		return group, nil
 	}
 	return nil, model.NewGeneralError(KEEPASS_ERROR_UUID_NOT_FOUND, "找不到对象")
@@ -237,25 +239,72 @@ func (keepass *KeepassHelper) UpdateEntryOfUUID(UUIDBase64Str string, fields map
 	}
 	return keepass.saveDB()
 }
-func (keepass *KeepassHelper) findGroupInParentGroup(parentGroup *gokeepasslib.Group, uuid gokeepasslib.UUID) *gokeepasslib.Group {
+
+// DeleteGroupOfUUID will delete specific group
+func (keepass *KeepassHelper) DeleteGroupOfUUID(UUIDBase64Str string) *model.GeneralError {
+	if err := keepass.ReUnlock(); err != nil {
+		return err
+	}
+	if keepass.db == nil || keepass.unlocked == false {
+		return model.NewGeneralError(KEEPASS_ERROR_DB_LOCKED, "数据库未解锁")
+	}
+	root := keepass.db.Content.Root
+	if len(root.Groups) == 0 {
+		return model.NewGeneralError(KEEPASS_ERROR_PATH_UNREACHABLE, "空数据库")
+	}
+	if len(UUIDBase64Str) == 0 {
+		// 删除数据必须要提供uuid
+		return model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "未提供uuid")
+	}
+	uuid := gokeepasslib.NewUUID()
+	if err := uuid.UnmarshalText([]byte(UUIDBase64Str)); err != nil {
+		return model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "UUID 异常:"+err.Error())
+	}
+	rootGroup := &root.Groups[0]
+	if rootGroup.UUID.Compare(uuid) {
+		return model.NewGeneralError(KEEPASS_ERROR_TRY_DELETE_ROOT_GROUP, "不能删除根组")
+	}
+	parent, group := keepass.findGroupInParentGroup(rootGroup, uuid)
+	if group == nil {
+		return model.NewGeneralError(KEEPASS_ERROR_UUID_NOT_FOUND, "找不到对象")
+	}
+	newGroups := []gokeepasslib.Group{}
+	for i := range parent.Groups {
+		if parent.Groups[i].UUID.Compare(uuid) {
+			continue
+		}
+		newGroups = append(newGroups, parent.Groups[i])
+	}
+	parent.Groups = newGroups
+	return keepass.saveDB()
+}
+
+// DeleteEntryOfUUID will delete specific entry
+func (keepass *KeepassHelper) DeleteEntryOfUUID(UUIDBase64Str string) *model.GeneralError {
+	return nil
+}
+func (keepass *KeepassHelper) findGroupInParentGroup(parentGroup *gokeepasslib.Group, uuid gokeepasslib.UUID) (*gokeepasslib.Group, *gokeepasslib.Group) {
 	if parentGroup == nil {
-		return nil
+		return nil, nil
 	}
 	if len(uuid) != KEEPASS_UUID_LEN {
-		return nil
+		return nil, nil
 	}
 	if parentGroup.UUID.Compare(uuid) {
-		return parentGroup
+		return nil, parentGroup
 	}
 	if len(parentGroup.Groups) == 0 {
-		return nil
+		return nil, nil
 	}
 	for index := range parentGroup.Groups {
-		if group := keepass.findGroupInParentGroup(&parentGroup.Groups[index], uuid); group != nil {
-			return group
+		if parent, group := keepass.findGroupInParentGroup(&parentGroup.Groups[index], uuid); group != nil {
+			if parent == nil {
+				return parentGroup, group
+			}
+			return parent, group
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (keepass *KeepassHelper) findEntryInParentGroup(parentGroup *gokeepasslib.Group, uuid gokeepasslib.UUID) *gokeepasslib.Entry {

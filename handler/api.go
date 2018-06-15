@@ -97,7 +97,6 @@ func AddRecord(w http.ResponseWriter, r *http.Request) {
 		model.NewGeneralError(http.StatusBadRequest, "只能在组内创建对象").WriteIn(w)
 		return
 	}
-
 	uuidbase64str := parentUUID[1:]
 	var uuid *string
 	var err *model.GeneralError
@@ -143,7 +142,6 @@ func UpdateRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	uuidtype := uuid[0]
 	uuidbase64str := uuid[1:]
-	_ = uuidbase64str
 	var err *model.GeneralError
 	switch uuidtype {
 	case model.RequestItemTypeGroup:
@@ -167,11 +165,41 @@ func UpdateRecord(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	// var err *model.GeneralError
-	// if requestInfo.IsGroup {
-	// 	err = helper.SharedKeepassHelper().UpdateGroupInPath(requestInfo.Path, requestInfo.Field)
-	// } else {
-	// 	err = helper.SharedKeepassHelper().UpdateEntryInPath(requestInfo.Path, requestInfo.Field)
-	// }
+}
 
+// DeleteRecord will delete group or entry
+func DeleteRecord(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	uuid, ok := mux.Vars(r)[model.RequestParamUUID]
+	if !ok || len(uuid) <= 1 {
+		// 修改对象时, uuid 必须不为空
+		w.WriteHeader(http.StatusBadRequest)
+		model.NewGeneralError(http.StatusBadRequest, "UUID 参数为空").WriteIn(w)
+		return
+	}
+	uuidtype := uuid[0]
+	uuidbase64str := uuid[1:]
+	var err *model.GeneralError
+	switch uuidtype {
+	case model.RequestItemTypeGroup:
+		err = helper.SharedKeepassHelper().DeleteGroupOfUUID(uuidbase64str)
+	case model.RequestItemTypeEntry:
+		err = helper.SharedKeepassHelper().DeleteEntryOfUUID(uuidbase64str)
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		model.NewGeneralError(http.StatusBadRequest, "uuid 不正确")
+		return
+	}
+	if err != nil {
+		if err.Code == helper.KEEPASS_ERROR_UUID_NOT_FOUND {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+		err.WriteIn(w)
+		return
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 }
