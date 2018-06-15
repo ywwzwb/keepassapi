@@ -91,16 +91,43 @@ func (keepass *KeepassHelper) GetGroupOfUUID(uuidbase64str string, force bool) (
 		// 没有提供uuid 的时候, 返回根组
 		return rootGroup, nil
 	}
-	// var uuidbase64str gokeepasslib.UUID
 	uuid := gokeepasslib.NewUUID()
 	if err := uuid.UnmarshalText([]byte(uuidbase64str)); err != nil {
 		return nil, model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "UUID 异常:"+err.Error())
 	}
-	if foundGroup := keepass.findGroupInParentGroup(rootGroup, uuid); foundGroup != nil {
-		return foundGroup, nil
+	if group := keepass.findGroupInParentGroup(rootGroup, uuid); group != nil {
+		return group, nil
 	}
 	return nil, model.NewGeneralError(KEEPASS_ERROR_UUID_NOT_FOUND, "找不到对象")
 }
+
+// GetEntryOfUUID will get the spcific keepass entry
+func (keepass *KeepassHelper) GetEntryOfUUID(uuidbase64str string, force bool) (*gokeepasslib.Entry, *model.GeneralError) {
+	if force {
+		keepass.ReUnlock()
+	}
+	if keepass.db == nil || keepass.unlocked == false {
+		return nil, model.NewGeneralError(KEEPASS_ERROR_DB_LOCKED, "数据库未解锁")
+	}
+	root := keepass.db.Content.Root
+	if len(root.Groups) == 0 {
+		return nil, model.NewGeneralError(KEEPASS_ERROR_PATH_UNREACHABLE, "空数据库")
+	}
+	rootGroup := &root.Groups[0]
+	if len(uuidbase64str) == 0 {
+		// 获取entry 必须提供uuid
+		return nil, model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "未提供uuid")
+	}
+	uuid := gokeepasslib.NewUUID()
+	if err := uuid.UnmarshalText([]byte(uuidbase64str)); err != nil {
+		return nil, model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "UUID 异常:"+err.Error())
+	}
+	if entry := keepass.findEntryInParentGroup(rootGroup, uuid); entry != nil {
+		return entry, nil
+	}
+	return nil, model.NewGeneralError(KEEPASS_ERROR_UUID_NOT_FOUND, "找不到对象")
+}
+
 func (keepass *KeepassHelper) findGroupInParentGroup(parentGroup *gokeepasslib.Group, uuid gokeepasslib.UUID) *gokeepasslib.Group {
 	if parentGroup == nil {
 		return nil
@@ -115,8 +142,32 @@ func (keepass *KeepassHelper) findGroupInParentGroup(parentGroup *gokeepasslib.G
 		return nil
 	}
 	for index := range parentGroup.Groups {
-		if foundGroup := keepass.findGroupInParentGroup(&parentGroup.Groups[index], uuid); foundGroup != nil {
-			return foundGroup
+		if group := keepass.findGroupInParentGroup(&parentGroup.Groups[index], uuid); group != nil {
+			return group
+		}
+	}
+	return nil
+}
+
+func (keepass *KeepassHelper) findEntryInParentGroup(parentGroup *gokeepasslib.Group, uuid gokeepasslib.UUID) *gokeepasslib.Entry {
+	if parentGroup == nil {
+		return nil
+	}
+	if len(uuid) != KEEPASS_UUID_LEN {
+		return nil
+	}
+	if len(parentGroup.Entries) == 0 {
+		return nil
+	}
+	for index := range parentGroup.Entries {
+		entry := &parentGroup.Entries[index]
+		if entry.UUID.Compare(uuid) {
+			return entry
+		}
+	}
+	for index := range parentGroup.Groups {
+		if entry := keepass.findEntryInParentGroup(&parentGroup.Groups[index], uuid); entry != nil {
+			return entry
 		}
 	}
 	return nil
