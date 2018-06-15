@@ -126,7 +126,7 @@ func (keepass *KeepassHelper) GetEntryOfUUID(UUIDBase64Str string, force bool) (
 	if err := uuid.UnmarshalText([]byte(UUIDBase64Str)); err != nil {
 		return nil, model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "UUID 异常:"+err.Error())
 	}
-	if entry := keepass.findEntryInParentGroup(rootGroup, uuid); entry != nil {
+	if _, entry := keepass.findEntryInParentGroup(rootGroup, uuid); entry != nil {
 		return entry, nil
 	}
 	return nil, model.NewGeneralError(KEEPASS_ERROR_UUID_NOT_FOUND, "找不到对象")
@@ -281,7 +281,38 @@ func (keepass *KeepassHelper) DeleteGroupOfUUID(UUIDBase64Str string) *model.Gen
 
 // DeleteEntryOfUUID will delete specific entry
 func (keepass *KeepassHelper) DeleteEntryOfUUID(UUIDBase64Str string) *model.GeneralError {
-	return nil
+	if err := keepass.ReUnlock(); err != nil {
+		return err
+	}
+	if keepass.db == nil || keepass.unlocked == false {
+		return model.NewGeneralError(KEEPASS_ERROR_DB_LOCKED, "数据库未解锁")
+	}
+	root := keepass.db.Content.Root
+	if len(root.Groups) == 0 {
+		return model.NewGeneralError(KEEPASS_ERROR_PATH_UNREACHABLE, "空数据库")
+	}
+	if len(UUIDBase64Str) == 0 {
+		// 删除数据必须要提供uuid
+		return model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "未提供uuid")
+	}
+	uuid := gokeepasslib.NewUUID()
+	if err := uuid.UnmarshalText([]byte(UUIDBase64Str)); err != nil {
+		return model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "UUID 异常:"+err.Error())
+	}
+	rootGroup := &root.Groups[0]
+	parent, entry := keepass.findEntryInParentGroup(rootGroup, uuid)
+	if entry == nil {
+		return model.NewGeneralError(KEEPASS_ERROR_UUID_NOT_FOUND, "找不到对象")
+	}
+	newEntries := []gokeepasslib.Entry{}
+	for i := range parent.Entries {
+		if parent.Entries[i].UUID.Compare(uuid) {
+			continue
+		}
+		newEntries = append(newEntries, parent.Entries[i])
+	}
+	parent.Entries = newEntries
+	return keepass.saveDB()
 }
 func (keepass *KeepassHelper) findGroupInParentGroup(parentGroup *gokeepasslib.Group, uuid gokeepasslib.UUID) (*gokeepasslib.Group, *gokeepasslib.Group) {
 	if parentGroup == nil {
@@ -307,28 +338,25 @@ func (keepass *KeepassHelper) findGroupInParentGroup(parentGroup *gokeepasslib.G
 	return nil, nil
 }
 
-func (keepass *KeepassHelper) findEntryInParentGroup(parentGroup *gokeepasslib.Group, uuid gokeepasslib.UUID) *gokeepasslib.Entry {
+func (keepass *KeepassHelper) findEntryInParentGroup(parentGroup *gokeepasslib.Group, uuid gokeepasslib.UUID) (*gokeepasslib.Group, *gokeepasslib.Entry) {
 	if parentGroup == nil {
-		return nil
+		return nil, nil
 	}
 	if len(uuid) != KEEPASS_UUID_LEN {
-		return nil
-	}
-	if len(parentGroup.Entries) == 0 {
-		return nil
+		return nil, nil
 	}
 	for index := range parentGroup.Entries {
 		entry := &parentGroup.Entries[index]
 		if entry.UUID.Compare(uuid) {
-			return entry
+			return parentGroup, entry
 		}
 	}
 	for index := range parentGroup.Groups {
-		if entry := keepass.findEntryInParentGroup(&parentGroup.Groups[index], uuid); entry != nil {
-			return entry
+		if parentGroup, entry := keepass.findEntryInParentGroup(&parentGroup.Groups[index], uuid); entry != nil {
+			return parentGroup, entry
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (keepass *KeepassHelper) saveDB() *model.GeneralError {
