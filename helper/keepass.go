@@ -94,7 +94,7 @@ func (keepass *KeepassHelper) GetGroupOfUUID(UUIDBase64Str string, force bool) (
 		return rootGroup, nil
 	}
 	uuid := gokeepasslib.NewUUID()
-	if err := uuid.UnmarshalText([]byte(UUIDBase64Str)); err != nil {
+	if err := unmarshalKeepassUUIDTextURLSafe(&uuid, []byte(UUIDBase64Str)); err != nil {
 		return nil, model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "UUID 异常:"+err.Error())
 	}
 	if _, group := keepass.findGroupInParentGroup(rootGroup, uuid); group != nil {
@@ -123,7 +123,7 @@ func (keepass *KeepassHelper) GetEntryOfUUID(UUIDBase64Str string, force bool) (
 		return nil, model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "未提供uuid")
 	}
 	uuid := gokeepasslib.NewUUID()
-	if err := uuid.UnmarshalText([]byte(UUIDBase64Str)); err != nil {
+	if err := unmarshalKeepassUUIDTextURLSafe(&uuid, []byte(UUIDBase64Str)); err != nil {
 		return nil, model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "UUID 异常:"+err.Error())
 	}
 	if _, entry := keepass.findEntryInParentGroup(rootGroup, uuid); entry != nil {
@@ -257,7 +257,7 @@ func (keepass *KeepassHelper) DeleteGroupOfUUID(UUIDBase64Str string) *model.Gen
 		return model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "未提供uuid")
 	}
 	uuid := gokeepasslib.NewUUID()
-	if err := uuid.UnmarshalText([]byte(UUIDBase64Str)); err != nil {
+	if err := unmarshalKeepassUUIDTextURLSafe(&uuid, []byte(UUIDBase64Str)); err != nil {
 		return model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "UUID 异常:"+err.Error())
 	}
 	rootGroup := &root.Groups[0]
@@ -296,7 +296,7 @@ func (keepass *KeepassHelper) DeleteEntryOfUUID(UUIDBase64Str string) *model.Gen
 		return model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "未提供uuid")
 	}
 	uuid := gokeepasslib.NewUUID()
-	if err := uuid.UnmarshalText([]byte(UUIDBase64Str)); err != nil {
+	if err := unmarshalKeepassUUIDTextURLSafe(&uuid, []byte(UUIDBase64Str)); err != nil {
 		return model.NewGeneralError(KEEPASS_ERROR_WRONG_UUID, "UUID 异常:"+err.Error())
 	}
 	rootGroup := &root.Groups[0]
@@ -385,4 +385,17 @@ func mkValue(key string, value string) gokeepasslib.ValueData {
 
 func mkProtectedValue(key string, value string) gokeepasslib.ValueData {
 	return gokeepasslib.ValueData{Key: key, Value: gokeepasslib.V{Content: value, Protected: true}}
+}
+
+func unmarshalKeepassUUIDTextURLSafe(u *gokeepasslib.UUID, text []byte) error {
+	id := make([]byte, base64.URLEncoding.DecodedLen(len(text)))
+	length, err := base64.URLEncoding.Decode(id, text)
+	if err != nil {
+		return err
+	}
+	if length != 16 {
+		return gokeepasslib.ErrInvalidUUIDLength
+	}
+	copy((*u)[:], id[:16])
+	return nil
 }
