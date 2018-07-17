@@ -26,7 +26,7 @@ func main() {
 	r := mux.NewRouter()
 	r.Handle("/{UUID:[A-Za-z0-9\\-_=]*}", handler.NewSimpleFilter(handler.ReadDB)).Methods("GET")
 	r.Handle("/{UUID:[A-Za-z0-9\\-_=]+}", handler.NewSimpleFilter(handler.AddRecord)).Methods("POST")
-	r.Handle("/{UUID:[A-Za-z0-9\\-_=]+}}", handler.NewSimpleFilter(handler.UpdateRecord)).Methods("PUT")
+	r.Handle("/{UUID:[A-Za-z0-9\\-_=]+}", handler.NewSimpleFilter(handler.UpdateRecord)).Methods("PUT")
 	r.Handle("/{UUID:[A-Za-z0-9\\-_=]+}", handler.NewSimpleFilter(handler.DeleteRecord)).Methods("DELETE")
 	fmt.Println("running at port:", port)
 	fmt.Println("keepass db path:", helper.Keepassdbpath)
